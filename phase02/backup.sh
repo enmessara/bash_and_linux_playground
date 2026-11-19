@@ -14,34 +14,34 @@ if [[ -z "$src_dir" ]]; then
     exit 1
 fi
 
-# Step 3: Check whether source is a directory
+# Check if source is a non-directory
 if [[ ! -d "$src_dir" ]]; then
     echo -e "${red}The provided path is not a valid directory.${nc}"
     exit 1
 fi
 
-# Step 4: Remove trailing slash
+# Remove trailing slash
 src_dir="${src_dir%/}"
 
-# Step 5: Generate timestamp
+# Getting formatted timetestamp
 printf -v timestamp '%(%Y-%m-%d_%H-%M-%S)T' -1
 
-# Step 6: Define backup directory
+# Naming backup directory with a timestamp
 backup_dir="backup_${timestamp}"
 
-# Step 7: Refuse to overwrite existing backup
+# If there is another directory with same name, don't overwri
 if [[ -e "$backup_dir" ]]; then
     echo -e "${red}Backup already exists. Refusing to overwrite.${nc}"
     exit 1
 fi
 
-# Step 8: Create backup directory
+# If the directory is not there make it using mkdir
 if ! mkdir "$backup_dir"; then
     echo -e "${red}Failed to create backup directory.${nc}"
     exit 1
 fi
 
-# Step 9: Copy source directory
+# Copy contents from the source
 if cp -r "$src_dir" "$backup_dir/"; then
     echo -e "${green}Backup completed successfully!${nc}"
     echo "Backup location: $backup_dir"
