@@ -1,14 +1,14 @@
 
 #!/usr/bin/env bash
-
+#Colors
 red='\033[0;91m'
 green='\033[0;32m'
 nc='\033[0m'
 
-# Step 1: Get source directory
+# Getting the source directory
 read -rp "Enter source directory (full path): " src_dir
 
-# Step 2: Check for empty input
+# Checking if the input is empty
 if [[ -z "$src_dir" ]]; then
     echo -e "${red}Source directory cannot be empty!${nc}"
     exit 1
