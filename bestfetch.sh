@@ -10,9 +10,11 @@ WHITE='\033[0;37m'
 CYAN='\033[0;36m'
 CYAN_B='\033[0;95m'
 NC='\033[0m'
+#Battery function code
+#We used function instead of clogging codes whilst we can make it cleaner and more readable
 get_battery_advanced() {
     BAT_PATH=$(ls /sys/class/power_supply/ | grep BAT | head -n 1)
-
+    #If no battery is detected
     [[ -z "$BAT_PATH" ]] && echo "No Battery" && return
 
     CAPACITY=$(cat /sys/class/power_supply/$BAT_PATH/capacity)
@@ -36,13 +38,13 @@ get_battery_advanced() {
     YELLOW="\e[1;33m"
     GREEN="\e[1;32m"
 
-    # gradient simulation (block-based)
+    # gradient simulation - Made it look like block like the early Nokia phones
     FULL=20
     FILLED=$((CAPACITY * FULL / 100))
     EMPTY=$((FULL - FILLED))
 
     BAR=""
-
+    # A loop to see the remaining power
     for ((i=0; i<FILLED; i++)); do
         if (( i < FULL/3 )); then
             BAR+="${RED}█"
@@ -79,12 +81,12 @@ get_packages() {
 }
 
 
-# Header
+# Header like the one of fastfetch but minimal - much minimal
 echo -e "${CYAN}================================================${NC}"
 echo -e "${YELLOW}          $(whoami)@$(hostname)${NC}"
 echo -e "${CYAN}================================================${NC}"
 
-
+# Now the actual values and displaying them 
 echo -e "${WHITE}SYSTEM UPTIME: ${RED}$(uptime -p) "
 echo -e "${WHITE}CURRENT DIRECTORY: ${RED}$(pwd)"
 echo -e "${WHITE}YOUR IP ADDRESS: ${RED}$(ip -o -4 addr show wlo1 | awk '{print $4}'| cut -f1)"
@@ -106,4 +108,4 @@ cpu=$(lscpu | awk -F: '/Model name/ {print $2}' | xargs)
 echo -e "${WHITE}CPU: ${RED}$cpu ($(nproc))"
 
 
-      echo -e                                    "${CYAN}©️ Created by Benson Ngugi.Feel free to modify. ${NC}  "
+      echo -e                                    "${CYAN}©️ Created by Benson Ngugi.Feel free to modify. This was my first so I must boast :) ${NC}  "
