@@ -23,8 +23,15 @@ echo " "
 
 #Generating timestamp
 printf -v gen_date '%(%d-%m-%Y at %H:%M:%S)T\n' -1
+
 host=$(hostname)
-#The required file to generate host information
+
+#Just a simple formatted printf Function
+print_f(){
+    printf "%-25s ${white}%s${nc}\n" "$1" "$2"
+}
+
+#Function for system information
 get_os_info(){
     local os_file="/etc/os-release"
     local kernel=$(uname -r)
@@ -40,15 +47,15 @@ get_os_info(){
     fi
     (
     . "$os_file"
-    echo "OS: ${NAME:-Unknown}"
-    echo "Hostname: ${host:-Unknown}"
-    echo "Version: ${VERSION:-Unknown}"
-    echo "Distribution Family: ${ID_LIKE:-Unknown}"
-    echo "Kernel Version: ${kernel:-Unknown}"
-    echo "System Architecture: ${archit:-Unknown}"
-    echo "Manufacturer: ${manu:-Unknown}"
-    echo "Model: ${model:-Unknown}"
-    echo "Uptime: ${uptime:-Unknown}"
+    print_f "OS:" "${NAME:-Unknown}"
+    print_f "Hostname:" "${host:-Unknown}"
+    print_f "Version:" "${VERSION:-Unknown}"
+    print_f "Distribution Family:" "${ID_LIKE:-Unknown}"
+    print_f "Kernel Version:" "${kernel:-Unknown}"
+    print_f "System Architecture:" "${archit:-Unknown}"
+    print_f "Manufacturer:" "${manu:-Unknown}"
+    print_f "Model:" "${model:-Unknown}"
+    print_f "Uptime:" "${uptime:-Unknown}"
 
         )
 }
