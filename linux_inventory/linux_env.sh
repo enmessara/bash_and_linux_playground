@@ -94,7 +94,7 @@ mem_info(){
 
     print_f "Total RAM:" "${ram:-Unavailable}GiB"
     print_f "Used RAM:" "${used:-Unavailable}GiB"
-    print_f "Used RAM percentage:" "${usage_tage}%"
+    print_f "Used RAM percentage:" "${usage_tage}"
     print_f "Available RAM:" "${available}GiB"
     print_f "Total Swap:" "${total_swap}GiB"
     print_f "Available Swap:" "${avail_swap}GiB"
