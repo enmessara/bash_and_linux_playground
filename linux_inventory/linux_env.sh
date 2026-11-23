@@ -99,6 +99,11 @@ mem_info(){
     print_f "Total Swap:" "${total_swap}GiB"
     print_f "Available Swap:" "${avail_swap}GiB"
 }
+
+#Storage Function
+storage_info(){
+
+}
  
 echo -e "${yellow}Welcome to linux system inventory.${nc}"
 echo -e "${yellow}Generating system info for $host machine...\n"
