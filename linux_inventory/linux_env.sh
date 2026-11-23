@@ -82,6 +82,23 @@ cpu_info(){
 
     
 }
+
+#Memory Information(RAM)
+mem_info(){
+    local ram=$(awk '/MemTotal/ {printf "%.2f\n", $2 / 1024 / 1024}' /proc/meminfo)
+    local used=$(awk '/MemTotal/ {t=$2} /MemAvailable/ {a=$2} END {printf "%.2f\n", (t-a) / 1024 / 1024}' /proc/meminfo)
+    local usage_tage=$(awk '/MemTotal/ {t=$2} /MemAvailable/ {a=$2} END {printf "%.1f%%\n", ((t-a) / t) * 100}' /proc/meminfo)
+    local available=$(awk '/MemAvailable/ {printf "%.2f\n", $2 / 1048576}' /proc/meminfo)
+    local total_swap=$(awk '/SwapTotal/ {printf "%.2f\n", $2 / 1048576}' /proc/meminfo)
+    local avail_swap=$(awk '/SwapTotal/ {t=$2} /SwapFree/ {f=$2} END {printf "%.2f\n", (t-f) / 1048576}' /proc/meminfo)
+
+    print_f "Total RAM:" "${ram:-Unavailable}GiB"
+    print_f "Used RAM:" "${used:-Unavailable}GiB"
+    print_f "Used RAM percentage:" "${usage_tage}%"
+    print_f "Available RAM:" "${available}GiB"
+    print_f "Total Swap:" "${total_swap}GiB"
+    print_f "Available Swap:" "${avail_swap}GiB"
+}
  
 echo -e "${yellow}Welcome to linux system inventory.${nc}"
 echo -e "${yellow}Generating system info for $host machine...\n"
@@ -95,7 +112,10 @@ echo -e "${red}-------------------------------------${nc}"
 echo -e "${cyan}2. CPU Information${nc}"
 echo -e "${red}-------------------------------------${nc}"
 cpu_info
-
+echo -e "${red}-------------------------------------${nc}"
+echo -e "${cyan}3. Memory Information${nc}"
+echo -e "${red}-------------------------------------${nc}"
+mem_info
 
 
 
