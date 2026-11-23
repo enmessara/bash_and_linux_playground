@@ -40,6 +40,7 @@ get_os_info(){
     local manu=$(dmidecode -t system | grep -i Manufacture | cut -d : -f 2)
     local model=$(dmidecode -t system | grep -i Product | cut -d : -f 2)
     local uptime=$(uptime -p)
+    local virtual=$(systemd-detect-virt)
 
     if [[ ! -r "$os_file" ]]; then
         echo -e "${red} Cannot read $os_file" >&2
@@ -56,8 +57,30 @@ get_os_info(){
     print_f "Manufacturer:" "${manu:-Unknown}"
     print_f "Model:" "${model:-Unknown}"
     print_f "Uptime:" "${uptime:-Unknown}"
+    print_f "Virtualization:" "${virtual:-Not detectable}"
 
         )
+}
+
+#CPU Function with information needed
+cpu_info(){
+    local cpu_model=$(awk -F: '/^model name/ {gsub(/^[ \t]+/, "", $2); print $2; exit}' /proc/cpuinfo)
+    local cpu_vendor=$(awk -F: '/^vendor_id/ {gsub(/^[ \t]+/, "", $2); print $2; exit}' /proc/cpuinfo)
+    local logical_core=$(nproc)
+    local physical_core=$(lscpu -b -p=Core,Socket | grep -v '^#' | sort -u | wc -l)
+    local frequency=$(awk '/cpu MHz/ {sum += $4; count++} END {printf "%.2f MHz\n", sum/count}' /proc/cpuinfo)
+    local usage=$(top -bn1 | awk '/^%Cpu/ {printf "%.2f%%\n", 100 - $8}')
+    local load=$(awk -v c="$logical_core" '{printf "%s %s %s (%.1f%% per core)", $1, $2, $3, ($1/c)*100}' /proc/loadavg)
+
+    print_f "CPU Model:" "${cpu_model:-Unknown}"
+    print_f "CPU Vendor:" "${cpu_vendor:-Unknown}"
+    print_f "Logical Cores:" "${logical_core:-Unknown}"
+    print_f "Physical Cores:" "${physical_core:-Unavailable}"
+    print_f "CPU Frequency:" "${frequency:-Unavailable}"
+    print_f "Average CPU Usage:" "${usage:-Unavailable}"
+    print_f "Average Load:" "${load:-Unavailable}"
+
+    
 }
  
 echo -e "${yellow}Welcome to linux system inventory.${nc}"
@@ -65,10 +88,13 @@ echo -e "${yellow}Generating system info for $host machine...\n"
 sleep 2
 echo -e "Linux System Information Generated on: $gen_date"
 echo -e "${red}-------------------------------------${nc}"
-echo -e "${white}1. General System Information${nc}"
+echo -e "${cyan}1. General System Information${nc}"
 echo -e "${red}-------------------------------------${nc}"
 get_os_info
-
+echo -e "${red}-------------------------------------${nc}"
+echo -e "${cyan}2. CPU Information${nc}"
+echo -e "${red}-------------------------------------${nc}"
+cpu_info
 
 
 
