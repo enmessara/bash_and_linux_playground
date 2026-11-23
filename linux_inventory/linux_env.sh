@@ -116,6 +116,9 @@ echo -e "${red}-------------------------------------${nc}"
 echo -e "${cyan}3. Memory Information${nc}"
 echo -e "${red}-------------------------------------${nc}"
 mem_info
+echo -e "${red}-------------------------------------${nc}"
+echo -e "${cyan}4. Storage Information${nc}"
+echo -e "${red}-------------------------------------${nc}"
 
 
 
