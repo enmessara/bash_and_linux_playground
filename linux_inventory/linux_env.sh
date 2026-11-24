@@ -151,7 +151,7 @@ net_func() {
         state=$(<"$iface/operstate") # Slightly faster Bash built-in than `cat`
 
         case "$state" in
-            up)   color="$nc" ;; # Or "$NC" if you want 'UP' in default terminal text
+            up)   color="$nc" ;; 
             down) color="$red" ;;
             *)    color="$yellow" ;;
         esac
@@ -159,10 +159,125 @@ net_func() {
         printf "%-25s ${color}%s${NC}\n" "$name" "${state^^}"
     done
 }
+
+#IP extraction
+
+check_network_info() {
+    echo "=== Network Information ==="
+
+    # 1. Primary active interface & IPv4 Default Gateway
+    local active_iface gw_ipv4 gw_ipv6
+    active_iface=$(ip -4 route show default 2>/dev/null | awk '{print $5; exit}')
+    gw_ipv4=$(ip -4 route show default 2>/dev/null | awk '{print $3; exit}')
+    gw_ipv6=$(ip -6 route show default 2>/dev/null | awk '{print $3; exit}')
+
+    if [[ -z "$active_iface" ]]; then
+        echo "Connection Status: Disconnected (No default route)"
+        return 1
+    fi
+
+    # 2. Connection Type (Wi-Fi vs Ethernet)
+    local conn_type="Ethernet"
+    if [[ -d "/sys/class/net/$active_iface/wireless" ]] || [[ "$active_iface" == wl* ]]; then
+        conn_type="Wi-Fi"
+    fi
+
+    # 3. MAC Address
+    local mac_addr
+    [[ -r "/sys/class/net/$active_iface/address" ]] && mac_addr=$(<"/sys/class/net/$active_iface/address")
+        # 6. DNS Configuration (systemd-resolved with /etc/resolv.conf fallback)
+    local dns_servers search_domains
+    if command -v resolvectl &>/dev/null && systemctl is-active --quiet systemd-resolved; then
+        # Get upstream DNS servers for the active interface (or global fallback)
+        dns_servers=$(resolvectl dns "$active_iface" 2>/dev/null | sed 's/^.*: //')
+        [[ -z "$dns_servers" ]] && dns_servers=$(resolvectl dns 2>/dev/null | awk '{for(i=4;i<=NF;i++) printf "%s ", $i}' | xargs)
+        
+        search_domains=$(resolvectl domain "$active_iface" 2>/dev/null | sed 's/^.*: //')
+    else
+        # Fallback to traditional /etc/resolv.conf
+        dns_servers=$(awk '/^nameserver/ {print $2}' /etc/resolv.conf 2>/dev/null | xargs)
+        search_domains=$(awk '/^(search|domain)/ {for(i=2;i<=NF;i++) printf "%s ", $i}' /etc/resolv.conf 2>/dev/null | xargs)
+    fi
+
+
+    # 4. IPv4 and IPv6 Addresses
+    local ipv4 ipv6
+    ipv4=$(ip -4 -o addr show dev "$active_iface" scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)
+    ipv6=$(ip -6 -o addr show dev "$active_iface" scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)
+
+    print_f "Active Interface:" "$active_iface"
+    print_f "Connection Type:" "$conn_type"
+    print_f "MAC Address:"  "${mac_addr:-Unavailable}"
+    print_f "IPv4 Address:" "${ipv4:-None}"
+    print_f "IPv4 Gateway:" "${gw_ipv4:-None}"
+    print_f "IPv6 Address:" "${ipv6:-None}"
+    print_f "IPv6 Gateway:" "${gw_ipv6:-None}"
+    print_f "DNS Servers:" "${dns_servers:-None}"
+    print_f "Search Domains:" "${search_domains:-None}"
+
+
+    # 5. Full IPv4 Routing Table
+    echo "--- IPv4 Routing Table ---"
+  
+printf "%b%s%b\n" "$cyan" "$(ip -4 route show | sed 's/^/  /')" "$nc"
+}
+check_security_network() {
+    echo "=== Firewall & VPN Status ==="
+
+    # 1. Detect Firewall Status
+    local fw_status="Inactive or None detected"
+    if command -v ufw &>/dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
+        fw_status="Active (UFW)"
+    elif command -v firewall-cmd &>/dev/null && firewall-cmd --state &>/dev/null; then
+        local active_zone
+        active_zone=$(firewall-cmd --get-active-zones 2>/dev/null | head -n1)
+        fw_status="Active (firewalld - Zone: ${active_zone:-default})"
+    elif command -v nft &>/dev/null && [[ -n "$(nft list ruleset 2>/dev/null)" ]]; then
+        fw_status="Active (nftables rules loaded)"
+    elif command -v iptables &>/dev/null && [[ $(iptables -S 2>/dev/null | wc -l) -gt 3 ]]; then
+        fw_status="Active (iptables rules loaded)"
+    elif [[ $EUID -ne 0 ]]; then
+        fw_status="Unknown (Run with sudo to inspect firewall rules)"
+    fi
+
+    # 2. Detect Active VPN Connections
+    local vpn_list=()
+
+    # Method A: Check NetworkManager active VPNs (if nmcli is installed)
+    if command -v nmcli &>/dev/null; then
+        while IFS=: read -r name type; do
+            [[ "$type" == "vpn" || "$type" == "wireguard" ]] && vpn_list+=("$name ($type)")
+        done < <(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null)
+    fi
+
+    # Method B: Check active virtual tunnel interfaces (OpenVPN, WireGuard, Tailscale, ZeroTier, Cisco)
+    local iface
+    for iface in /sys/class/net/*; do
+        iface=$(basename "$iface")
+        if [[ "$iface" =~ ^(tun|tap|wg|tailscale|zt|ppp|cscotun)[0-9a-zA-Z_-]*$ ]]; then
+            # Avoid duplicates if already caught by nmcli
+            if [[ ! " ${vpn_list[*]} " =~ " $iface " ]]; then
+                vpn_list+=("Interface: $iface")
+            fi
+        fi
+    done
+
+    local vpn_status="Disconnected"
+    if [[ ${#vpn_list[@]} -gt 0 ]]; then
+        # Join array elements with commas
+        vpn_status="Connected ($(IFS=', '; echo "${vpn_list[*]}"))"
+    fi
+
+    print_f "Firewall Status:" "$fw_status"
+    print_f "VPN Status:" "$vpn_status"
+}
+
+
 #Network information
 net_info(){
     net_func
-
+    check_network_info
+    check_security_network
 }
 #user groups
 get_groups(){
@@ -224,9 +339,9 @@ check_ssh_config() {
     if [[ -d "$ssh_dir" ]]; then
         local dir_perms
         dir_perms=$(stat -c "%a" "$ssh_dir")
-        echo "SSH Directory:     Exists (Permissions: $dir_perms)"
+        print_f "SSH Directory:" "Exists (Permissions: $dir_perms)"
     else
-        echo "SSH Directory:     Not found ($ssh_dir)"
+        print_f "SSH Directory:" "Not found ($ssh_dir)"
     fi
 
     # 2. Check authorized_keys (count & permissions, should be 600)
@@ -236,15 +351,15 @@ check_ssh_config() {
         key_perms=$(stat -c "%a" "$auth_keys")
         # Count non-empty, non-comment lines
         key_count=$(grep -cve '^\s*$' -e '^\s*#' "$auth_keys" 2>/dev/null || echo 0)
-        echo "Authorized Keys:   $key_count key(s) configured (Permissions: $key_perms)"
+        print_f "Authorized Keys:" "$key_count key(s) configured (Permissions: $key_perms)"
     else
-        echo "Authorized Keys:   None"
+        print_f "Authorized Keys:"   "None"
     fi
 
     # 3. Check user's public/private key pairs
     local pub_keys
     pub_keys=$(find "$ssh_dir" -maxdepth 1 -name "*.pub" -printf "%f " 2>/dev/null)
-    echo "User Public Keys:  ${pub_keys:-None}"
+    print_f "User Public Keys:"  "${pub_keys:-None}"
 
     # 4. Check effective SSH daemon rules for this user (requires root/sudo)
     if command -v sshd &>/dev/null && [[ $EUID -eq 0 ]]; then
@@ -296,6 +411,10 @@ echo -e "${red}-------------------------------------${nc}"
 echo -e "${cyan}5. User Information${nc}"
 echo -e "${red}-------------------------------------${nc}"
 user_info
+echo -e "${red}-------------------------------------${nc}"
+echo -e "${cyan}6. Network Information${nc}"
+echo -e "${red}-------------------------------------${nc}"
+net_info
 
 
 
