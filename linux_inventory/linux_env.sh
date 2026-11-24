@@ -99,11 +99,61 @@ mem_info(){
     print_f "Total Swap:" "${total_swap}GiB"
     print_f "Available Swap:" "${avail_swap}GiB"
 }
+<<<<<<< HEAD
 
 #Storage Function
 storage_info(){
 
 }
+=======
+#Smart disk Function
+smart(){
+# Check if smartctl is available
+    if ! command -v smartctl >/dev/null 2>&1; then
+        echo "Error: smartmontools is not installed."
+        exit 1
+    fi
+
+# Auto-detect all physical disks (excludes partitions, loop, and rom devices)
+    DISKS=$(lsblk -dn -o NAME,TYPE | awk '$2=="disk" {print "/dev/"$1}')
+
+    for disk in $DISKS; do
+    # Extract PASSED/FAILED status (handles both SATA and NVMe output formats)
+        HEALTH=$(sudo smartctl -H "$disk" 2>/dev/null | awk -F': ' '/overall-health|SMART Health Status/ {print $2}')
+    
+    # Fallback if drive is virtual (VM) or doesn't support SMART
+     echo "Disk: $disk | Health: ${HEALTH:-Not Supported / Virtual}"
+     #print_f "Health:" "${HEALTH:-Not Supported / Virtual}"
+    done
+}
+
+
+# Storage information Function
+storage_info(){
+    local physical_model=$(lsblk -dn -e 7 -o MODEL)
+    local physical_size=$(lsblk -dn -e 7 -o SIZE)
+    local storage_used=$(df -h / | awk 'NR==2 {print $3}')
+    local storage_available=$(df -h / | awk 'NR==2 {print $4}')
+    local filesystem_type=$(df -T / | awk 'NR==2 {print $2}')
+    local health=$(smart)
+    
+    
+    print_f "Disk Model:" "${physical_model:-Unknown}"
+    print_f "Disk Size:" "${physical_size:-Unknown}"
+    print_f "Storage Used:" "${storage_used:-Nod Detected}"
+    print_f "Storage Available:" "${storage_available}"
+    print_f "Filesystem Type:" "${filesystem_type:-Unknown}"
+    print_f "Health:" "${health:-Undetected}"
+    
+}
+
+
+
+
+
+
+
+>>>>>>> 182cd02 (Fastfetch-Like,,,added storage information)
  
 echo -e "${yellow}Welcome to linux system inventory.${nc}"
 echo -e "${yellow}Generating system info for $host machine...\n"
@@ -122,9 +172,15 @@ echo -e "${cyan}3. Memory Information${nc}"
 echo -e "${red}-------------------------------------${nc}"
 mem_info
 echo -e "${red}-------------------------------------${nc}"
+<<<<<<< HEAD
 echo -e "${cyan}4. Long-Term Storage Information${nc}"
 echo -e "${red}-------------------------------------${nc}"
 
+=======
+echo -e "${cyan}4. Storage Information${nc}"
+echo -e "${red}-------------------------------------${nc}"
+storage_info
+>>>>>>> 182cd02 (Fastfetch-Like,,,added storage information)
 
 
 
